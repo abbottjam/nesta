@@ -16,6 +16,13 @@ module Nesta
         exit 1
       end
 
+      def system_call(*args)
+        result = system(*args)
+        raise SystemExit, "Command '#{args}' not found." if result.eql? nil
+        raise ScriptError, "Error in command '#{args}'." if result.eql? false
+        result
+      end
+
       def template_root
         File.expand_path('../../templates', File.dirname(__FILE__))
       end
@@ -62,7 +69,7 @@ module Nesta
       rescue IndexError
         $stderr.puts "No editor: set EDITOR environment variable"
       else
-        system(editor, @filename)
+        system_call(editor, @filename)
       end
     end
 
@@ -74,7 +81,7 @@ module Nesta
         options = args.shift || {}
         path.nil? && (raise UsageError.new('path not specified'))
         if File.exist?(path)
-          raise RuntimeError.new("#{path} already exists") 
+          raise RuntimeError.new("#{path} already exists")
         end
         @path = path
         @options = options
@@ -95,9 +102,9 @@ module Nesta
           File.open('.gitignore', 'w') do |file|
             file.puts %w[._* .*.swp .bundle .DS_Store .sass-cache].join("\n")
           end
-          system('git', 'init')
-          system('git', 'add', '.')
-          system('git', 'commit', '-m', 'Initial commit')
+          system_call('git', 'init')
+          system_call('git', 'add', '.')
+          system_call('git', 'commit', '-m', 'Initial commit')
         end
       end
 
@@ -130,9 +137,9 @@ module Nesta
           repository = 'git://github.com/gma/nesta-demo-content.git'
           path = Nesta::Path.local(@dir)
           if File.exist?(path)
-            FileUtils.cd(path) { system('git', 'pull', 'origin', 'master') }
+            FileUtils.cd(path) { system_call('git', 'pull', 'origin', 'master') }
           else
-            system('git', 'clone', repository, path)
+            system_call('git', 'clone', repository, path)
           end
         end
 
@@ -170,9 +177,9 @@ module Nesta
         def modify_required_file
           File.open(lib_path("#{@gem_name}.rb"), 'w') do |file|
             file.write <<-EOF
-require "#{@gem_name}/version"
+            require "#{@gem_name}/version"
 
-Nesta::Plugin.register(__FILE__)
+            Nesta::Plugin.register(__FILE__)
             EOF
           end
         end
@@ -181,19 +188,19 @@ Nesta::Plugin.register(__FILE__)
           module_name = @name.split('-').map { |name| name.capitalize }.join('::')
           File.open(lib_path(@gem_name, 'init.rb'), 'w') do |file|
             file.puts <<-EOF
-module Nesta
-  module Plugin
-    module #{module_name}
-      module Helpers
-        # If your plugin needs any helper methods, add them here...
-      end
-    end
-  end
+            module Nesta
+              module Plugin
+                module #{module_name}
+                  module Helpers
+                    # If your plugin needs any helper methods, add them here...
+                  end
+                end
+              end
 
-  class App
-    helpers Nesta::Plugin::#{module_name}::Helpers
-  end
-end
+              class App
+                helpers Nesta::Plugin::#{module_name}::Helpers
+              end
+            end
             EOF
           end
         end
@@ -216,11 +223,11 @@ end
         end
 
         def execute
-          system('bundle', 'gem', @gem_name)
+          system_call('bundle', 'gem', @gem_name)
           modify_required_file
           modify_init_file
           specify_gem_dependency
-          Dir.chdir(@gem_name) { system('git', 'add', '.') }
+          Dir.chdir(@gem_name) { system_call('git', 'add', '.') }
         end
       end
     end
@@ -251,7 +258,7 @@ end
             'themes/views/layout.haml' => "#{@theme_path}/views/layout.haml",
             'themes/views/page.haml' => "#{@theme_path}/views/page.haml",
             'themes/views/master.sass' => "#{@theme_path}/views/master.sass"
-          )
+            )
         end
       end
 
@@ -267,7 +274,7 @@ end
         end
 
         def execute
-          system('git', 'clone', @url, "themes/#{@name}")
+          system_call('git', 'clone', @url, "themes/#{@name}")
           FileUtils.rm_r(File.join("themes/#{@name}", '.git'))
           enable
         end
